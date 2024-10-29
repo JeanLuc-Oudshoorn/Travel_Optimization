@@ -4,11 +4,7 @@ import itertools
 # Define the cities
 cities = ['AMS', 'BLR', 'HKT', 'BKK', 'KL']
 
-# Mandatory and optional cities
-mandatory_cities = ['BLR', 'HKT']
-optional_cities = ['BKK', 'KL']
-
-# Flight costs for one-way flights (represented as a dictionary of dictionaries)
+# Flight costs for one-way flights
 one_way_costs = {
     'AMS': {'AMS': 9999, 'BLR': 405, 'HKT': 700, 'BKK': 530, 'KL': 425},
     'BLR': {'AMS': 325, 'BLR': 9999, 'HKT': 170, 'BKK': 160, 'KL': 150},
@@ -32,99 +28,140 @@ round_trip_costs_BLR = {
     'KL': 250,
 }
 
-# High cost to represent unavailable round trips from other cities
-round_trip_unavailable = 9999
+# Mandatory and optional cities
+mandatory_cities = ['BLR', 'HKT']
+optional_cities = ['BKK', 'KL']
 
 # Number of iterations for the random search
-iterations = 1000000
+iterations = 100000
 
 # Initialize the best cost and route
 best_cost = float('inf')
 best_route = None
-best_flights = None  # To store the flight choices (one-way or round-trip)
+best_flights = None
 
 def generate_random_route():
     """
-    Generate a random route starting and ending at AMS,
-    including mandatory cities and one optional city.
+    Generate a random route starting at AMS and ending when AMS is picked again.
+    Cities can be visited multiple times.
     """
     route = ['AMS']
-    # Choose one optional city
-    optional_city = random.choice(optional_cities)
-    # Combine mandatory and optional cities
-    middle_cities = mandatory_cities + [optional_city]
-    # Randomize the order of middle cities
-    random.shuffle(middle_cities)
-    route.extend(middle_cities)
-    route.append('AMS')  # End at AMS
+
+    while True:
+        next_cities = ['AMS', 'BLR', 'HKT', 'BKK', 'KL']
+        # Randomly pick the next city
+        next_city = random.choice(next_cities)
+        route.append(next_city)
+        if next_city == 'AMS' and len(route) > 2:
+            break  # End the route
+
+        # To prevent infinite loops, limit the maximum route length
+        if len(route) > 10:
+            route.append('AMS')
+            break
     return route
 
-def get_flight_cost(departure, arrival, flight_type):
+def is_valid_route(route):
     """
-    Get the cost of a flight between two cities.
-    flight_type can be 'one_way' or 'round_trip'.
+    Check if the route is valid:
+    - Starts and ends at AMS
+    - Visits BLR and HKT at least once
+    - Visits at least one of BKK or KL
     """
-    if flight_type == 'one_way':
-        return one_way_costs[departure][arrival]
-    elif flight_type == 'round_trip':
-        if departure == 'AMS':
-            return round_trip_costs_AMS.get(arrival, round_trip_unavailable)
-        elif departure == 'BLR':
-            return round_trip_costs_BLR.get(arrival, round_trip_unavailable)
-        else:
-            return round_trip_unavailable
-    else:
-        return round_trip_unavailable
+    if route[0] != 'AMS' or route[-1] != 'AMS':
+        return False
+    route_set = set(route)
+    if not all(city in route_set for city in mandatory_cities):
+        return False
+    if not any(city in route_set for city in optional_cities):
+        return False
+    return True
 
-def is_round_trip_available(departure, arrival):
+def find_round_trip_options(route):
     """
-    Check if a round-trip flight is available between two cities.
+    Find possible round-trip tickets that can be purchased for the route.
+    Each round-trip ticket can be purchased at most once.
     """
-    if departure == 'AMS' and arrival in round_trip_costs_AMS:
-        return True
-    if departure == 'BLR' and arrival in round_trip_costs_BLR:
-        return True
-    return False
+    options = []
+    # Round-trip tickets from AMS
+    if route.count('AMS') >= 2:
+        for dest in round_trip_costs_AMS:
+            if route.count(dest) >= 1:
+                options.append(('AMS', dest))
+    # Round-trip tickets from BLR
+    if route.count('BLR') >= 2:
+        for dest in round_trip_costs_BLR:
+            if route.count(dest) >= 1 and dest != 'BLR':
+                options.append(('BLR', dest))
+    return options
 
-for i in range(iterations):
-    # Generate a random route
+def calculate_cost(route):
+    """
+    Calculate the total cost of the route, considering possible round-trip tickets.
+    Each round-trip ticket and its legs can be used at most once.
+    """
+    min_total_cost = float('inf')
+    best_flights = []
+    # Find possible round-trip options
+    round_trip_options = find_round_trip_options(route)
+    # Generate all combinations of purchasing round-trip tickets
+    for r in range(len(round_trip_options) + 1):
+        for round_trips in itertools.combinations(round_trip_options, r):
+            total_cost = 0
+            flights = []
+            used_round_trips = {}
+            leg_usage = {}
+            # Purchase the selected round-trip tickets
+            valid_purchase = True
+            for departure, arrival in round_trips:
+                if departure == 'AMS':
+                    cost = round_trip_costs_AMS[arrival]
+                elif departure == 'BLR':
+                    cost = round_trip_costs_BLR[arrival]
+                else:
+                    valid_purchase = False
+                    break  # Invalid round-trip purchase
+                total_cost += cost
+                # Record that this round-trip ticket has been purchased
+                used_round_trips[(departure, arrival)] = True
+                # Initialize leg usage
+                leg_usage[(departure, arrival)] = 0  # Outbound leg usage count
+                leg_usage[(arrival, departure)] = 0  # Return leg usage count
+            if not valid_purchase:
+                continue
+            # Now, go through the route and calculate the cost for each leg
+            for i in range(len(route) - 1):
+                departure = route[i]
+                arrival = route[i + 1]
+                flight_type = 'One-way flight'
+                cost = one_way_costs[departure][arrival]
+                # Check if this leg can be covered by a round-trip ticket
+                if (departure, arrival) in leg_usage:
+                    if leg_usage[(departure, arrival)] == 0:
+                        # Use the leg from the round-trip ticket
+                        cost = 0
+                        flight_type = 'Round-trip leg (no additional cost)'
+                        leg_usage[(departure, arrival)] += 1
+                    else:
+                        # Leg has already been used
+                        pass  # Use one-way flight cost
+                total_cost += cost
+                flights.append((departure, arrival, flight_type, cost))
+            # Check if any round-trip legs were unused (penalize or skip)
+            all_legs_used = all(usage >= 1 for usage in leg_usage.values())
+            if not all_legs_used:
+                continue  # Skip this combination as not all legs of the purchased round-trip tickets were used
+            # Update minimum total cost
+            if total_cost < min_total_cost:
+                min_total_cost = total_cost
+                best_flights = flights.copy()
+    return min_total_cost, best_flights
+
+for _ in range(iterations):
     route = generate_random_route()
-
-    # Initialize total cost and flight choices
-    total_cost = 0
-    flights = []  # List to store flight details
-
-    # Decide on flight types between each pair of cities
-    j = 0
-    while j < len(route) - 1:
-        departure = route[j]
-        arrival = route[j + 1]
-
-        # Randomly decide to use one-way or round-trip flight
-        if is_round_trip_available(departure, arrival) and random.choice([True, False]):
-            # Use round-trip flight
-            cost = get_flight_cost(departure, arrival, 'round_trip')
-            if cost >= 9999:
-                # If round-trip not available, use one-way
-                cost = get_flight_cost(departure, arrival, 'one_way')
-                flights.append((departure, arrival, 'one_way', cost))
-                total_cost += cost
-                j += 1
-            else:
-                # Need to adjust the route to include the return trip
-                # Insert the departure city again after arrival
-                route.insert(j + 2, departure)
-                flights.append((departure, arrival, 'round_trip', cost))
-                total_cost += cost
-                j += 2  # Skip the next city since it's the return to departure
-        else:
-            # Use one-way flight
-            cost = get_flight_cost(departure, arrival, 'one_way')
-            flights.append((departure, arrival, 'one_way', cost))
-            total_cost += cost
-            j += 1
-
-    # Update best route if total cost is lower
+    if not is_valid_route(route):
+        continue
+    total_cost, flights = calculate_cost(route)
     if total_cost < best_cost:
         best_cost = total_cost
         best_route = route.copy()
@@ -132,7 +169,7 @@ for i in range(iterations):
 
 # Output the best route and cost
 print("Optimal Route:", ' -> '.join(best_route))
-print("Total Cost: €", best_cost)
+print(f"Total Cost: € {best_cost}")
 print("Flight Details:")
 for flight in best_flights:
-    print(f"  {flight[0]} to {flight[1]} via {flight[2]} flight: €{flight[3]}")
+    print(f"  {flight[0]} to {flight[1]} via {flight[2]}: €{flight[3]}")
