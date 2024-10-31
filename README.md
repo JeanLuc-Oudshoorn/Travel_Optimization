@@ -63,8 +63,8 @@ The script evaluates various combinations of one-way and round-trip flights, con
 1. **Clone the Repository**:
 
    ```bash
-   git clone https://github.com/your-username/your-repo-name.git
-   cd your-repo-name ``` 
+   git clone [https://github.com/your-username/your-repo-name.git](https://github.com/JeanLuc-Oudshoorn/Travel_Optimization.git)
+   cd Travel_Optimization ``` 
 
 2. **Run the script**:
 
