@@ -84,7 +84,7 @@ The script evaluates various combinations of one-way and round-trip flights, con
      HKT to KL via One-way flight: €40
      KL to BLR via One-way flight: €110
      BLR to AMS via Round-trip leg (no additional cost): €0
-    ```
+   ```
 
 ## Customization
 **Adjust Iterations**: Modify the iterations variable in the script to increase or decrease the number of iterations for the random search.
