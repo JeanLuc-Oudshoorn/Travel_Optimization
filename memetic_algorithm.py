@@ -35,7 +35,7 @@ optional_cities: List[str] = ['BKK', 'KL']
 start_city: str = 'AMS'
 
 # Memetic Algorithm Parameters
-population_size: int = 1000  # Increased population size
+population_size: int = 100  # Increased population size
 generations: int = 4  # Increased number of generations
 mutation_rate: float = 0.4  # Increased mutation rate
 tournament_size: int = 3  # Adjusted tournament size
