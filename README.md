@@ -63,27 +63,28 @@ The script evaluates various combinations of one-way and round-trip flights, con
 1. **Clone the Repository**:
 
    ```bash
-   git clone [https://github.com/your-username/your-repo-name.git](https://github.com/JeanLuc-Oudshoorn/Travel_Optimization.git)
-   cd Travel_Optimization ``` 
+   git clone https://github.com/JeanLuc-Oudshoorn/Travel_Optimization.git
+   cd Travel_Optimization
+   ``` 
 
 2. **Run the script**:
 
-  ```bash
-    python amsterdam_round.py
-  ```
+   ```bash
+   python amsterdam_round.py
+   ```
 
 ### Example Output
 
-  ```rust
-    Optimal Route: AMS -> BLR -> HKT -> KL -> BLR -> AMS
-    Total Cost: € 870
-    Flight Details:
-      AMS to BLR via Round-trip leg (no additional cost): €0
-      BLR to HKT via One-way flight: €170
-      HKT to KL via One-way flight: €40
-      KL to BLR via One-way flight: €110
-      BLR to AMS via Round-trip leg (no additional cost): €0
-  ```
+   ```rust
+   Optimal Route: AMS -> BLR -> HKT -> KL -> BLR -> AMS
+   Total Cost: € 870
+   Flight Details:
+     AMS to BLR via Round-trip leg (no additional cost): €0
+     BLR to HKT via One-way flight: €170
+     HKT to KL via One-way flight: €40
+     KL to BLR via One-way flight: €110
+     BLR to AMS via Round-trip leg (no additional cost): €0
+    ```
 
 ## Customization
 **Adjust Iterations**: Modify the iterations variable in the script to increase or decrease the number of iterations for the random search.
