@@ -4,7 +4,7 @@ from collections import Counter
 from typing import List, Tuple, Dict
 
 # Define the cities
-cities = ['AMS', 'BLR', 'HKT', 'BKK', 'KL', 'SIN']
+cities = ['AMS', 'BLR', 'HKT', 'BKK', 'KL']
 
 # Flight costs for one-way flights
 one_way_costs: Dict[str, Dict[str, int]] = {
@@ -32,7 +32,7 @@ round_trip_costs_BLR: Dict[str, int] = {
 
 # Mandatory and optional cities
 mandatory_cities: List[str] = ['BLR', 'HKT']
-optional_cities: List[str] = ['BKK', 'KL', 'SIN']
+optional_cities: List[str] = ['BKK', 'KL']
 start_city: str = 'AMS'
 
 # Memetic Algorithm Parameters
