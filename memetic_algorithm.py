@@ -1,9 +1,10 @@
 import random
 import itertools
+from collections import Counter
 from typing import List, Tuple, Dict
 
 # Define the cities
-cities = ['AMS', 'BLR', 'HKT', 'BKK', 'KL']
+cities = ['AMS', 'BLR', 'HKT', 'BKK', 'KL', 'SIN']
 
 # Flight costs for one-way flights
 one_way_costs: Dict[str, Dict[str, int]] = {
@@ -31,15 +32,15 @@ round_trip_costs_BLR: Dict[str, int] = {
 
 # Mandatory and optional cities
 mandatory_cities: List[str] = ['BLR', 'HKT']
-optional_cities: List[str] = ['BKK', 'KL']
+optional_cities: List[str] = ['BKK', 'KL', 'SIN']
 start_city: str = 'AMS'
 
 # Memetic Algorithm Parameters
-population_size: int = 100  # Increased population size
-generations: int = 4  # Increased number of generations
+population_size: int = 10 # Increased population size
+generations: int = 100  # Increased number of generations
 mutation_rate: float = 0.4  # Increased mutation rate
 tournament_size: int = 3  # Adjusted tournament size
-elitism_count: int = 3  # Number of elites to preserve
+elitism_count: int = 0  # Number of elites to preserve
 
 def generate_random_route() -> List[str]:
     """
@@ -62,8 +63,6 @@ def generate_random_route() -> List[str]:
         city = city_pool.pop()
         route.append(city)
 
-        print(f"city: {city}, route: {route}")
-
         # Remove the city from mandatory cities
         if city in mandatory_remaining:
             mandatory_remaining.remove(city)
@@ -77,7 +76,6 @@ def generate_random_route() -> List[str]:
             random.shuffle(city_pool)
 
         if city is start_city:
-            print()
             return route
 
 
@@ -173,92 +171,141 @@ def calculate_cost(route: List[str]) -> Tuple[int, List[Tuple[str, str, str, int
                 best_flights = flights.copy()
     return min_total_cost, best_flights
 
-def create_adjacency_matrix(parent1: List[str], parent2: List[str]) -> Dict[str, set]:
+def crossover(parent1: List[str], parent2: List[str]) -> Tuple[List[str], List[str]]:
     """
-    Create the adjacency matrix for ERO based on two parent routes.
+    Perform crossover between two parents to produce two offspring.
+    The offspring are repaired to ensure they are valid.
 
     Args:
         parent1 (List[str]): The first parent route.
         parent2 (List[str]): The second parent route.
 
     Returns:
-        Dict[str, set]: The adjacency matrix.
+        Tuple[List[str], List[str]]: The two offspring routes.
     """
-    adjacency = {}
-    parents = [parent1, parent2]
-    for parent in parents:
-        length = len(parent)
-        for i, city in enumerate(parent):
-            if city not in adjacency:
-                adjacency[city] = set()
-            prev_city = parent[i - 1] if i > 0 else parent[-1]
-            next_city = parent[i + 1] if i < length - 1 else parent[0]
-            adjacency[city].update([prev_city, next_city])
-    return adjacency
+    # Exclude start and end city for splitting
+    min_length = min(len(parent1), len(parent2)) - 2  # Exclude start and end city
+    if min_length < 1:
+        return parent1, parent2  # Can't perform crossover
 
-def edge_recombination_crossover(parent1: List[str], parent2: List[str]) -> List[str]:
+    # Choose a random split index
+    split_index = random.randint(1, min_length)  # Index between 1 and min_length
+
+    # Create offspring
+    offspring1 = parent1[:split_index] + parent2[split_index:]
+    offspring2 = parent2[:split_index] + parent1[split_index:]
+
+    # Repair offspring
+    offspring1 = repair_offspring(offspring1)
+    offspring2 = repair_offspring(offspring2)
+
+    return offspring1, offspring2
+
+def repair_offspring(offspring: List[str]) -> List[str]:
     """
-    Perform Edge Recombination Operator (ERO) crossover on two parent routes.
+    Repair an offspring to ensure it meets the constraints:
+    - Starts and ends with the starting city
+    - Each city (except the starting city) appears at most twice
+    - All mandatory cities are included at least once
+    - At least one optional city is included
 
     Args:
-        parent1 (List[str]): The first parent route.
-        parent2 (List[str]): The second parent route.
+        offspring (List[str]): The offspring route to repair.
 
     Returns:
-        List[str]: The child route.
+        List[str]: The repaired offspring route.
     """
-    adjacency = create_adjacency_matrix(parent1, parent2)
-    cities_set = set(parent1 + parent2)
-    current_city = random.choice([parent1[1], parent2[1]])  # Start from position 1 to skip 'AMS' at index 0
-    child = [start_city]
-    visited = set(start_city)
+    # Ensure start and end city
+    if offspring[0] != start_city:
+        offspring.insert(0, start_city)
+    if offspring[-1] != start_city:
+        offspring.append(start_city)
 
-    while len(child) < len(parent1):
-        child.append(current_city)
-        visited.add(current_city)
-        # Remove current city from adjacency lists
-        for neighbors in adjacency.values():
-            neighbors.discard(current_city)
-        # Select next city
-        if adjacency.get(current_city):
-            # Choose neighbor with the fewest neighbors
-            next_cities = list(adjacency[current_city])
-            min_neighbors = min(len(adjacency.get(city, [])) for city in next_cities)
-            candidates = [city for city in next_cities if len(adjacency.get(city, [])) == min_neighbors]
-            next_city = random.choice(candidates)
-        else:
-            # Choose random unvisited city
-            remaining_cities = cities_set - visited
-            if remaining_cities:
-                next_city = random.choice(list(remaining_cities))
+    # Count city occurrences
+    city_counts = Counter(city for city in offspring if city != start_city)
+
+    # Add missing mandatory cities
+    for city in mandatory_cities:
+        if city_counts.get(city, 0) == 0:
+            # Insert at a random position (excluding start and end)
+            idx_to_insert = random.randint(1, len(offspring) - 1)
+            offspring.insert(idx_to_insert, city)
+
+    # Ensure at least one optional city is included
+    if not any(city in optional_cities for city in offspring):
+        # Insert a random optional city at a random position
+        optional_city = random.choice(optional_cities)
+        idx_to_insert = random.randint(1, len(offspring) - 1)
+        offspring.insert(idx_to_insert, optional_city)
+
+    # Ensure that each city appears at most twice
+    for city, count in city_counts.items():
+        while count > 2:
+            # Find indices of the city (excluding start and end)
+            indices = [i for i, c in enumerate(offspring[1:-1], 1) if c == city]
+            if indices:
+                idx_to_remove = random.choice(indices)
+                del offspring[idx_to_remove]
+                count -= 1
             else:
-                break  # No more cities to visit
-        current_city = next_city
+                break
 
-    # Ensure the route ends with the start city
-    if child[-1] != start_city:
-        child.append(start_city)
+    return offspring
 
-    return child
-
-def mutate(route: List[str]) -> List[str]:
+def mutate(route: List[str], min_optional_cities: int = 1) -> List[str]:
     """
-    Mutate a route using inversion mutation.
+    Mutate a route by performing inversion mutation and adjusting optional cities.
+
+    - If the number of optional cities is greater than the minimum required, randomly delete an optional city.
+    - If any optional city occurs less than twice in the route, randomly add it to the route.
 
     Args:
         route (List[str]): The route to mutate.
+        min_optional_cities (int): The minimum number of optional cities that have to be visited in the solution.
 
     Returns:
         List[str]: The mutated route.
     """
     route = route.copy()
-    indices = [i for i in range(1, len(route) - 1)]  # Exclude start and end indices
-    if len(indices) < 2:
-        return route
 
-    idx1, idx2 = sorted(random.sample(indices, 2))
-    route[idx1:idx2] = reversed(route[idx1:idx2])
+    # Perform inversion mutation
+    indices = [i for i in range(1, len(route) - 1)]  # Exclude start and end indices
+    if len(indices) >= 2:
+        idx1, idx2 = sorted(random.sample(indices, 2))
+        route[idx1:idx2] = reversed(route[idx1:idx2])
+
+    # Count occurrences of each city
+    city_counts = Counter(city for city in route if city != start_city)
+
+    # List of optional cities currently in the route
+    optional_cities_in_route = [city for city in route if city in optional_cities]
+    num_optional_cities = len(optional_cities_in_route)
+
+    random_roll = random.random()
+
+    if random_roll < 0.75:
+        # If more optional cities than required, randomly delete an optional city
+        if num_optional_cities > min_optional_cities:
+            # Choose a random optional city to remove
+            city_to_remove = random.choice(optional_cities_in_route)
+            # Remove one occurrence of the city (excluding start and end positions)
+            indices_to_remove = [i for i, city in enumerate(route) if city == city_to_remove and i != 0 and i != len(route) - 1]
+            if indices_to_remove:
+                idx_to_remove = random.choice(indices_to_remove)
+                del route[idx_to_remove]
+
+    else:
+        # For optional cities that occur less than twice, randomly add one
+        for city in optional_cities:
+            if city_counts.get(city, 0) < 2:
+                # Insert at a random position (excluding start and end)
+                idx_to_insert = random.randint(1, len(route) - 1)
+                route.insert(idx_to_insert, city)
+                city_counts[city] += 1
+                continue
+
     return route
+
 
 def tournament_selection(population: List[List[str]], fitnesses: List[int], k: int) -> List[str]:
     """
@@ -276,6 +323,32 @@ def tournament_selection(population: List[List[str]], fitnesses: List[int], k: i
     best_idx = min(selected_indices, key=lambda idx: fitnesses[idx])
     return population[best_idx]
 
+def local_search(route: List[str]) -> List[str]:
+    """
+    Perform local search on the route by swapping adjacent cities (excluding start and end).
+
+    Args:
+        route (List[str]): The route to improve.
+
+    Returns:
+        List[str]: The improved route.
+    """
+    best_route = route.copy()
+    best_cost, _ = calculate_cost(best_route)
+
+    # Swap adjacent cities (excluding start and end)
+    for i in range(1, len(route) - 2):  # Exclude last index to avoid swapping end city
+        new_route = route.copy()
+        # Swap cities at positions i and i+1
+        new_route[i], new_route[i + 1] = new_route[i + 1], new_route[i]
+        new_cost, _ = calculate_cost(new_route)
+        if new_cost < best_cost:
+            best_route = new_route
+            best_cost = new_cost
+
+    return best_route
+
+
 def run_genetic_algorithm():
     """
     Run the genetic algorithm with the specified parameters.
@@ -285,10 +358,8 @@ def run_genetic_algorithm():
     # Initialize population
     population: List[List[str]] = []
     for _ in range(population_size):
-        while True:
-            route = generate_random_route()
-            population.append(route)
-            break
+        route = generate_random_route()
+        population.append(route)
 
     # Evolutionary loop
     for generation in range(generations):
@@ -305,7 +376,6 @@ def run_genetic_algorithm():
         print(f"Generation {generation+1}: Best Cost = €{best_cost}, Route = {' -> '.join(best_route)}")
 
         new_population: List[List[str]] = []
-
         # Elitism: Preserve the best individuals
         elites = [population[idx] for idx in sorted(range(len(fitnesses)), key=lambda i: fitnesses[i])[:elitism_count]]
         new_population.extend(elites)
@@ -314,15 +384,23 @@ def run_genetic_algorithm():
             # Selection
             parent1 = tournament_selection(population, fitnesses, tournament_size)
             parent2 = tournament_selection(population, fitnesses, tournament_size)
+
             # Crossover
-            child = edge_recombination_crossover(parent1, parent2)
+            offspring1, offspring2 = crossover(parent1, parent2)
+
             # Mutation
             if random.random() < mutation_rate:
-                child = mutate(child)
+                offspring1 = mutate(offspring1)
+            if random.random() < mutation_rate:
+                offspring2 = mutate(offspring2)
 
-                # Local Search
-                child = local_search(child)
-                new_population.append(child)
+            # Local search
+            offspring1 = local_search(offspring1)
+            new_population.append(offspring1)
+
+            if len(new_population) < population_size:
+                offspring2 = local_search(offspring2)
+                new_population.append(offspring2)
 
         population = new_population
 
@@ -333,33 +411,6 @@ def run_genetic_algorithm():
     for flight in best_flights:
         print(f"  {flight[0]} to {flight[1]} via {flight[2]}: €{flight[3]}")
 
-def local_search(route: List[str]) -> List[str]:
-    """
-    Perform local search on the route to improve it.
-
-    Args:
-        route (List[str]): The route to improve.
-
-    Returns:
-        List[str]: The improved route.
-    """
-    best_route = route.copy()
-    best_cost, _ = calculate_cost(best_route)
-
-    # Try swapping every pair of cities (excluding start and end)
-    indices = [i for i in range(1, len(route) - 1)]
-    for i in indices:
-        for j in indices:
-            if i >= j:
-                continue
-            new_route = route.copy()
-            new_route[i], new_route[j] = new_route[j], new_route[i]
-            new_cost, _ = calculate_cost(new_route)
-            if new_cost < best_cost:
-                best_route = new_route
-                best_cost = new_cost
-
-    return best_route
 
 if __name__ == "__main__":
     best_cost = float('inf')

@@ -70,7 +70,7 @@ The script evaluates various combinations of one-way and round-trip flights, con
 2. **Run the script**:
 
    ```bash
-   python amsterdam_round.py
+   python memetic_algorithm.py
    ```
 
 ### Example Output
