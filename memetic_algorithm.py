@@ -1,43 +1,44 @@
 import random
-import itertools
 from collections import Counter
-from typing import List, Tuple, Dict
+from typing import List, Tuple
+import os
+import json
+
+# Specify the path to your 'data' folder
+data_folder = 'data'
+
+# Load the one_way_costs dictionary from the JSON file
+one_way_file_path = os.path.join(data_folder, 'one_way_costs.json')
+with open(one_way_file_path, 'r') as f:
+    one_way_costs = json.load(f)
+
+# Load the round_trip_costs_AMS dictionary from the JSON file
+round_trip_file_path = os.path.join(data_folder, 'round_trip_costs.json')
+with open(round_trip_file_path, 'r') as f:
+    round_trip_costs = json.load(f)
+
+# Small correction
+round_trip_costs['HKT']['AMS'] = 9999
+
+# Now you can use the dictionaries in your script
+print("Loaded one_way_costs:")
+print(one_way_costs)
+
+print("\nLoaded round_trip_costs:")
+print(round_trip_costs)
+
 
 # Define the cities
-cities = ['AMS', 'BLR', 'HKT', 'BKK', 'KL']
-
-# Flight costs for one-way flights
-one_way_costs: Dict[str, Dict[str, int]] = {
-    'AMS': {'AMS': 9999, 'BLR': 405, 'HKT': 700, 'BKK': 530, 'KL': 425},
-    'BLR': {'AMS': 325, 'BLR': 9999, 'HKT': 170, 'BKK': 160, 'KL': 150},
-    'HKT': {'AMS': 750, 'BLR': 190, 'HKT': 9999, 'BKK': 50, 'KL': 40},
-    'BKK': {'AMS': 555, 'BLR': 140, 'HKT': 35, 'BKK': 9999, 'KL': 90},
-    'KL': {'AMS': 455, 'BLR': 110, 'HKT': 35, 'BKK': 100, 'KL': 9999},
-}
-
-# Flight costs for round-trip flights from AMS
-round_trip_costs_AMS: Dict[str, int] = {
-    'BLR': 550,
-    'HKT': 9999,
-    'BKK': 630,
-    'KL': 675,
-}
-
-# Flight costs for round-trip flights from BLR
-round_trip_costs_BLR: Dict[str, int] = {
-    'HKT': 300,
-    'BKK': 290,
-    'KL': 250,
-}
+cities = ['AMS', 'BLR', 'HKT', 'BKK', 'KUL']
 
 # Mandatory and optional cities
 mandatory_cities: List[str] = ['BLR', 'HKT']
-optional_cities: List[str] = ['BKK', 'KL']
+optional_cities: List[str] = ['BKK', 'KUL']
 start_city: str = 'AMS'
 
 # Memetic Algorithm Parameters
-population_size: int = 10 # Increased population size
-generations: int = 100  # Increased number of generations
+population_size: int = 1000 # Increased population size
+generations: int = 50  # Increased number of generations
 mutation_rate: float = 0.4  # Increased mutation rate
 tournament_size: int = 3  # Adjusted tournament size
 elitism_count: int = 0  # Number of elites to preserve
@@ -81,32 +82,44 @@ def generate_random_route() -> List[str]:
 
 def find_round_trip_options(route: List[str]) -> List[Tuple[str, str]]:
     """
-    Find possible round-trip tickets that can be purchased for the route.
-    Each round-trip ticket can be purchased at most once.
+    Find possible round-trip tickets in the route.
+    A round-trip is identified when a departure city appears twice in the route,
+    and the cities immediately after the first occurrence and immediately before
+    the second occurrence are the same arrival city.
 
     Args:
         route (List[str]): The route to analyze.
 
     Returns:
-        List[Tuple[str, str]]: A list of possible round-trip tickets.
+        List[Tuple[str, str]]: A list of possible round-trip tickets as (departure, arrival).
     """
     options: List[Tuple[str, str]] = []
-    # Round-trip tickets from AMS
-    if route.count('AMS') >= 2:
-        for dest in round_trip_costs_AMS:
-            if dest in route:
-                options.append(('AMS', dest))
-    # Round-trip tickets from BLR
-    if route.count('BLR') >= 1:
-        for dest in round_trip_costs_BLR:
-            if dest in route and dest != 'BLR':
-                options.append(('BLR', dest))
+    route_length = len(route)
+    for i, departure_city in enumerate(route):
+        # Only consider valid departure cities for round-trip tickets
+        if departure_city not in round_trip_costs:
+            continue
+        # Find the next occurrence of the departure city
+        try:
+            next_index = route.index(departure_city, i + 1)
+        except ValueError:
+            continue  # No second occurrence found
+        # Ensure indices are within bounds
+        if i + 1 >= route_length or next_index - 1 < 0:
+            continue
+        arrival_city_first = route[i + 1]
+        arrival_city_second = route[next_index - 1]
+        # Check if the arrival cities are the same and valid
+        if arrival_city_first == arrival_city_second and arrival_city_first in round_trip_costs[departure_city]:
+            options.append((departure_city, arrival_city_first))
+    # Remove duplicates
+    options = list(set(options))
     return options
+
 
 def calculate_cost(route: List[str]) -> Tuple[int, List[Tuple[str, str, str, int]]]:
     """
     Calculate the total cost of the route, considering possible round-trip tickets.
-    Each round-trip ticket and its legs can be used at most once.
 
     Args:
         route (List[str]): The route to calculate the cost for.
@@ -114,62 +127,41 @@ def calculate_cost(route: List[str]) -> Tuple[int, List[Tuple[str, str, str, int
     Returns:
         Tuple[int, List[Tuple[str, str, str, int]]]: The total cost and flight details.
     """
-    min_total_cost = float('inf')
-    best_flights = []
-    # Find possible round-trip options
+    total_cost = 0
+    flights = []
+
+    # Create list of legs in the route
+    legs = [(route[i], route[i + 1]) for i in range(len(route) - 1)]
+
+    # Initialize leg coverage
+    leg_covered = set()
+
+    # Find round-trip options using the updated method
     round_trip_options = find_round_trip_options(route)
-    # Generate all combinations of purchasing round-trip tickets
-    for r in range(len(round_trip_options) + 1):
-        for round_trips in itertools.combinations(round_trip_options, r):
-            total_cost = 0
-            flights = []
-            used_round_trips = {}
-            leg_usage = {}
-            # Purchase the selected round-trip tickets
-            valid_purchase = True
-            for departure, arrival in round_trips:
-                if departure == 'AMS':
-                    cost = round_trip_costs_AMS[arrival]
-                elif departure == 'BLR':
-                    cost = round_trip_costs_BLR[arrival]
-                else:
-                    valid_purchase = False
-                    break  # Invalid round-trip purchase
-                total_cost += cost
-                # Record that this round-trip ticket has been purchased
-                used_round_trips[(departure, arrival)] = True
-                # Initialize leg usage
-                leg_usage[(departure, arrival)] = 0  # Outbound leg usage count
-                leg_usage[(arrival, departure)] = 0  # Return leg usage count
-            if not valid_purchase:
-                continue
-            # Now, go through the route and calculate the cost for each leg
-            for i in range(len(route) - 1):
-                departure = route[i]
-                arrival = route[i + 1]
-                flight_type = 'One-way flight'
-                cost = one_way_costs[departure][arrival]
-                # Check if this leg can be covered by a round-trip ticket
-                if (departure, arrival) in leg_usage:
-                    if leg_usage[(departure, arrival)] == 0:
-                        # Use the leg from the round-trip ticket
-                        cost = 0
-                        flight_type = 'Round-trip leg (no additional cost)'
-                        leg_usage[(departure, arrival)] += 1
-                    else:
-                        # Leg has already been used
-                        pass  # Use one-way flight cost
-                total_cost += cost
-                flights.append((departure, arrival, flight_type, cost))
-            # Check if all purchased round-trip legs were used exactly once
-            all_legs_used = all(usage >= 1 for usage in leg_usage.values())
-            if not all_legs_used:
-                continue  # Skip this combination as not all legs of the purchased round-trip tickets were used
-            # Update minimum total cost
-            if total_cost < min_total_cost:
-                min_total_cost = total_cost
-                best_flights = flights.copy()
-    return min_total_cost, best_flights
+
+    # For each identified round-trip option, cover the corresponding legs
+    for departure, arrival in round_trip_options:
+        leg1 = (departure, arrival)
+        leg2 = (arrival, departure)
+        # Purchase the round-trip ticket
+        total_cost += round_trip_costs[departure][arrival]
+        # Mark legs as covered
+        leg_covered.update([leg1, leg2])
+        # Add flights with zero cost for legs covered by round-trip ticket
+        flights.append((leg1[0], leg1[1], 'Round-trip leg (no additional cost)', 0))
+        flights.append((leg2[0], leg2[1], 'Round-trip leg (no additional cost)', 0))
+
+    # Cover remaining legs with one-way tickets
+    for leg in legs:
+        if leg not in leg_covered:
+            departure, arrival = leg
+            cost = one_way_costs[departure][arrival]
+            total_cost += cost
+            flights.append((departure, arrival, 'One-way flight', cost))
+
+    return total_cost, flights
+
+
 
 def crossover(parent1: List[str], parent2: List[str]) -> Tuple[List[str], List[str]]:
     """
