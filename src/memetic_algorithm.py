@@ -5,9 +5,10 @@ import os
 import json
 
 # Specify the path to your 'data' folder
-data_folder = 'data'
+data_folder = '../data'
 
 # Load the one_way_costs dictionary from the JSON file
+# This should be a dictionary of dictionaries, where the upper level contains origins and the nested dictionaries contain destinations
 one_way_file_path = os.path.join(data_folder, 'one_way_costs.json')
 with open(one_way_file_path, 'r') as f:
     one_way_costs = json.load(f)
@@ -29,7 +30,7 @@ print(round_trip_costs)
 
 
 # Define the cities
-cities = ['AMS', 'BLR', 'HKT', 'BKK', 'KUL']
+cities = list(round_trip_costs.keys())
 
 # Mandatory and optional cities
 mandatory_cities: List[str] = ['BLR', 'HKT']

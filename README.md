@@ -2,11 +2,12 @@
 
 ## Overview
 
-This Python script implements an algorithm to find the most cost-effective travel route between several cities, given specific constraints and flight options. The goal is to minimize the total cost of a round-trip journey that:
+The Python script implements a memetic algorithm to find the most cost-effective travel route between several cities, given specific constraints and flight options. 
+The cities for which the best route is found can be adapted. In the current implementation the goal is to minimize the total cost of a round-trip journey that:
 
 - **Starts and ends in Amsterdam (AMS)**
 - **Includes mandatory visits to Bangalore (BLR) and Phuket (HKT)**
-- **Includes one optional city: either Bangkok (BKK) or Kuala Lumpur (KL)**
+- **Includes one optional city: either Bangkok (BKK) or Kuala Lumpur (KUL)**
 
 The script evaluates various combinations of one-way and round-trip flights, considering their costs and constraints, to determine the itinerary with the lowest total cost.
 
@@ -31,24 +32,18 @@ The script evaluates various combinations of one-way and round-trip flights, con
    - Generates random routes starting from AMS and ending when AMS is selected again.
    - Allows cities to be visited multiple times to utilize round-trip tickets effectively.
 
-3. **Route Validation**:
-   - Ensures each route:
-     - Starts and ends at AMS.
-     - Includes visits to BLR and HKT.
-     - Includes at least one of BKK or KL.
-
-4. **Round-Trip Ticket Evaluation**:
+3. **Round-Trip Ticket Evaluation**:
    - Identifies possible round-trip tickets based on the cities visited in the route.
    - Considers all combinations of purchasing available round-trip tickets.
    - Ensures each round-trip ticket is purchased at most once.
 
-5. **Cost Calculation**:
+4. **Cost Calculation**:
    - Tracks the usage of each leg of purchased round-trip tickets to prevent multiple uses.
    - Calculates the total cost of the route, adding costs of one-way flights and purchased round-trip tickets.
    - Ensures both legs of any purchased round-trip ticket are used exactly once.
 
-6. **Optimization Loop**:
-   - Repeats the above steps for a large number of iterations.
+5. **Optimization Loop**:
+   - Uses crossover, mutations and local search heuristics to create better routes.
    - Keeps track of the route with the lowest total cost found.
 
 ## Requirements
@@ -64,7 +59,7 @@ The script evaluates various combinations of one-way and round-trip flights, con
 
    ```bash
    git clone https://github.com/JeanLuc-Oudshoorn/Travel_Optimization.git
-   cd Travel_Optimization
+   cd Travel_Optimization/src
    ``` 
 
 2. **Run the script**:
@@ -81,22 +76,22 @@ The script evaluates various combinations of one-way and round-trip flights, con
    Flight Details:
      AMS to BLR via Round-trip leg (no additional cost): €0
      BLR to HKT via One-way flight: €170
-     HKT to KL via One-way flight: €40
-     KL to BLR via One-way flight: €110
+     HKT to KUL via One-way flight: €40
+     KUL to BLR via One-way flight: €110
      BLR to AMS via Round-trip leg (no additional cost): €0
    ```
 
 ## Customization
-**Adjust Iterations**: Modify the iterations variable in the script to increase or decrease the number of iterations for the random search.
-**Flight Costs**: Update the flight costs in the script to reflect current prices or different scenarios.
-**Cities and Constraints**: Add or remove cities and adjust mandatory or optional city requirements as needed.
+- **Adjust Iterations**: Modify the iterations variable in the script to increase or decrease the number of iterations for the random search.
+- **Flight Costs**: Enter your own flight costs or use the scraper in `src/scraper.py` to fetch them from Google Flights.
+- **Cities and Constraints**: Add or remove cities and adjust mandatory or optional city requirements as needed.
 
 ## Limitations
-**Random Search**: The algorithm uses random route generation, which may not guarantee finding the absolute optimal route every time.
-**Performance**: Suitable for small datasets. For larger datasets, consider implementing more efficient algorithms or optimization techniques.
-**Assumptions**:
-Round-trip tickets are available only from AMS and BLR.
-Each round-trip ticket can be purchased only once per journey.
+- **Scraping Flight Prices**: Currently the scraper simply picks the top suggest flight from Google Flights for a route on a specific date. You cannot filter for airlines, the number of layovers or total flight duration. You can enter your own prices, but this may be labour intensive if you want to consider more than a handful of cities. 
+- **Price Data is Indicative**: Prices found by the scraper (or displayed on comparison websites) may not give you all the information. You may have to pay extra for selecting a seat or booking luggage.
+- **Time Duration**: If 10+ cities need to be considered it may take the algorithm a significant amount of time to find a good solution.
+- **Fixed Start and End**: The trip must start and end in the same city.
+- **Global Optimum**: While for smaller problems it has been validated that the global optimum is found relatively quick, it cannot be guaranteed that a global optimum is found for larger problems.
 
 ## Contributing
 Contributions are welcome! If you have suggestions for improvements or find any issues, please open an issue or submit a pull request.
