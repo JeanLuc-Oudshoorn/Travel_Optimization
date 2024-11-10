@@ -5,7 +5,7 @@ import os
 import json
 
 # Specify the path to your 'data' folder
-data_folder = '../data'
+data_folder = 'data'
 
 # Load the one_way_costs dictionary from the JSON file
 # This should be a dictionary of dictionaries, where the upper level contains origins and the nested dictionaries contain destinations
@@ -17,9 +17,6 @@ with open(one_way_file_path, 'r') as f:
 round_trip_file_path = os.path.join(data_folder, 'round_trip_costs.json')
 with open(round_trip_file_path, 'r') as f:
     round_trip_costs = json.load(f)
-
-# Small correction
-round_trip_costs['HKT']['AMS'] = 9999
 
 # Now you can use the dictionaries in your script
 print("Loaded one_way_costs:")
@@ -33,14 +30,14 @@ print(round_trip_costs)
 cities = list(round_trip_costs.keys())
 
 # Mandatory and optional cities
-mandatory_cities: List[str] = ['BLR', 'HKT']
-optional_cities: List[str] = ['BKK', 'KUL']
+mandatory_cities: List[str] = ['SIN', 'TPE']
+optional_cities: List[str] = ['SGN', 'HAN']
 start_city: str = 'AMS'
 
 # Memetic Algorithm Parameters
-population_size: int = 1000 # Increased population size
+population_size: int = 100 # Increased population size
 generations: int = 50  # Increased number of generations
-mutation_rate: float = 0.4  # Increased mutation rate
+mutation_rate: float = 0.3  # Increased mutation rate
 tournament_size: int = 3  # Adjusted tournament size
 elitism_count: int = 0  # Number of elites to preserve
 

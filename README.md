@@ -86,8 +86,14 @@ The script evaluates various combinations of one-way and round-trip flights, con
 - **Flight Costs**: Enter your own flight costs or use the scraper in `src/scraper.py` to fetch them from Google Flights.
 - **Cities and Constraints**: Add or remove cities and adjust mandatory or optional city requirements as needed.
 
+## Flight Options
+The selected flights by the scraper are filtered for the following criteria.
+- **No Nightly Departures**: Only flights departing before midnight or after 07:00 AM (local time) are considered valid.
+- **Max 1. Stop**: Only flights with maximum one layover are considered valid.
+- **Less than 20 hr. Flight Duration**: Only flights with a total duration of less than 20 hours are considered valid.
+
 ## Limitations
-- **Scraping Flight Prices**: Currently the scraper simply picks the top suggest flight from Google Flights for a route on a specific date. You cannot filter for airlines, the number of layovers or total flight duration. You can enter your own prices, but this may be labour intensive if you want to consider more than a handful of cities. 
+- **Scraping Flight Prices**: Currently the scraper simply picks the cheapest suggested flight from Google Flights for a route on a specific date. You can enter your own prices, but this may be labour intensive if you want to consider more than a handful of cities. 
 - **Price Data is Indicative**: Prices found by the scraper (or displayed on comparison websites) may not give you all the information. You may have to pay extra for selecting a seat or booking luggage.
 - **Time Duration**: If 10+ cities need to be considered it may take the algorithm a significant amount of time to find a good solution.
 - **Fixed Start and End**: The trip must start and end in the same city.
